@@ -12,7 +12,8 @@ extension Model {
 
     // NSStringに準拠している型のみドロップを許可する
     func canHandle(_ session: UIDropSession) -> Bool {
-        return session.canLoadObjects(ofClass: NSString.self)
+        return session.canLoadObjects(ofClass: DropFromOtherApp.self)
+//        return session.canLoadObjects(ofClass: NSString.self)
     }
 
     // ドラッグするitemの送信用に変換

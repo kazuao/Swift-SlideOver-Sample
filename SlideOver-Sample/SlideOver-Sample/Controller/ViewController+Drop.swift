@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import MobileCoreServices
 
 // SplitView/SlideOverなどで、別アプリからドラッグされてきた時の処理
 // MARK: - UITableViewDropDelegate
@@ -61,14 +62,6 @@ extension ViewController: UITableViewDropDelegate {
     func tableView(_ tableView: UITableView, performDropWith coordinator: UITableViewDropCoordinator) {
         print("*** performDropWith ***")
 
-        print(coordinator)
-        coordinator.items.forEach({
-            print($0.dragItem)
-            print($0.sourceIndexPath ?? "")      // これが入っている場合は、画面内のドラッグ
-            print($0.dragItem.localObject ?? "") // これがある場合は、アプリ内の別の場所からドラッグ
-            print($0.dragItem.itemProvider)      // 非同期で取得するのに使う
-        })
-
         let destinationIndexPath: IndexPath
         /*
          destinationIndexPathがあるのは、
@@ -81,21 +74,45 @@ extension ViewController: UITableViewDropDelegate {
             // ない場合は、最後に挿入する
             let section = tableView.numberOfSections - 1
             let row = tableView.numberOfRows(inSection: section)
+            print(IndexPath(row: row, section: section))
             destinationIndexPath = IndexPath(row: row, section: section)
         }
 
-        coordinator.session.loadObjects(ofClass: NSString.self) { items in
-            let stringItems = items as! [String]
+        // いろいろファイル情報を取得する
+        let session = coordinator.session
+        session.items[0].itemProvider.loadFileRepresentation(forTypeIdentifier: kUTTypeContent as String) { url, error in
+            if let url = url {
+                // URLは、このアプリのtmpディレクトリに保存されている
+                print("url: \(url)")
+                print("file name: \(url.lastPathComponent)")
+                print("extension: \(url.pathExtension)")
 
-            var indexPaths = [IndexPath]()
-            for (index, item) in stringItems.enumerated() {
-                let indexPath = IndexPath(row: destinationIndexPath.row + index, section: destinationIndexPath.section)
-
-                self.model.addItem(item, at: indexPath.row)
-                indexPaths.append(indexPath)
+                do {
+                    let resources = try url.resourceValues(forKeys: [.fileSizeKey])
+                    let fileSize = resources.fileSize
+                    if let fileSize = fileSize {
+                        print("file size: \(fileSize)")
+                    }
+                } catch {
+                    print("error: \(error)")
+                }
             }
+        }
 
-            tableView.insertRows(at: indexPaths, with: .automatic)
+        let documentDirPath = NSSearchPathForDirectoriesInDomains(FileManager.SearchPathDirectory.documentDirectory,
+                                                                  FileManager.SearchPathDomainMask.userDomainMask, true)
+        print("**++ = \(documentDirPath)")
+
+        coordinator.items.forEach {
+            print("previewSize: \($0.previewSize)")
+        }
+
+        session.canLoadObjects(ofClass: DropFromOtherApp.self)
+        session.loadObjects(ofClass: DropFromOtherApp.self) { items in
+
+            let hoge = items[0] as! DropFromOtherApp
+            let data = DropFromOtherApp(modelData: hoge.data!, typeIdentifier:  kUTTypeContent as String)
+            print("data: \(data)")
         }
     }
 }
